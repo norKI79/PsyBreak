@@ -1,0 +1,38 @@
+<!DOCTYPE html>  
+<html>
+    <head>  
+        <meta charset="utf-8" />
+        <title> Doof Break </title>
+        <script type="text/javascript" src="phaser.min.js"></script>
+    		<script>
+    		var IPAD = true;		
+    		</script>
+    		<script src="Data.js"></script>
+    		<script src="LevelSelect.js"></script>
+			<script src="MainMenu.js"></script>
+    		<script src="Credits.js"></script>
+    		<script src="Brick_Coords.js"></script>
+    		<script src="Game.js"></script>
+    		
+    </head>
+
+    <body>
+    Doof Break V1.0 By NorKI41
+    
+		<script>
+		
+	(function() {
+   	 var game = new Phaser.Game(640, 480, Phaser.AUTO, this);
+
+   	 //game.state.add('Boot', Candy.Boot);
+    	//game.state.add('Preloader', Candy.Preloader);
+    	game.state.add('MainMenu', DoofBreak.MainMenu);
+    	game.state.add('LevelSelect',DoofBreak.LevelSelect);
+    	game.state.add('Game', DoofBreak.Game);
+    	game.state.add('Credits', DoofBreak.Credits);
+    	game.state.start('MainMenu');
+})();
+</script>
+</body>
+</body>  
+</html>  

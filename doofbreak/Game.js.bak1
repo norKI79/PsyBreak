@@ -1,0 +1,419 @@
+// Create our 'main' state that will contain the game
+// Pecularity 1: Can't call method arguments in arcade.collide otherwise it automatically calls the function
+var DoofBreak=DoofBreak || {};
+
+if(IPAD == true) { //setup static brick positioning vars
+		var BRICK_DIM1 = 35
+		var BRICK_DIM2 = 40;
+		var BRICK_DIM3 = 20; 
+	} else if(IPHONE == true) {
+		var BRICK_DIM1 = 5;
+		var BRICK_DIM2 = 150;
+		var BRICK_DIM3 = 30;
+	}
+
+function randomWithRange(min,max) {
+   	var range = (max - min) + 1;     
+   	var v = (Math.random() * range) + min;
+   	return v;
+   	
+};
+DoofBreak.Game =function(game) {
+	
+	this.game_timer = 0;
+	this.bullet_count = 10;
+	this.LEVEL_COMPLETE_SCORE = 100;
+	this.level = 1;
+	this.BULLET_MAX = 10;
+	this.brick_count = 0;
+	this.GAME_TIME = 180; //3min rounds
+	this.game_score = 0;
+	this.score_text;
+	this.multiplier_text;
+	this.bullets = [];
+	this.bricks = [];
+	this.obj_flip= []; //this must be an array because multiple ball hits fuck up the collision detection as the code only checks for one ball atm.
+	this.powerup=null;
+	this.powerup_speed=false;
+	this.speed_up = 0;
+	this.speed_down = 0;
+	this.shields=1;
+	this.engines = 200;
+	this.paused=false;
+	this.gameover = false;
+};
+
+DoofBreak.Game.prototype = {
+    preload: function() { 
+    		this.parseLevelData(1);
+        // This function will be executed at the beginning     
+        // That's where we load the images and sounds 
+         this.load.image('paddle', 'assets/e.jpg');
+         this.load.image('bullet', 'assets/bullet.png');
+         this.load.image('bullet_r', 'assets/bullet_r.png');
+         this.load.image('bullet_y', 'assets/bullet_y.png');
+         this.load.image('bullet_g', 'assets/bullet_g.png');
+         this.load.image('brick', 'assets/brick.png');
+         this.load.image('brick2', 'assets/brick2.png');
+         this.load.image('straight_line', 'assets/straight_line.png');
+         this.load.image('powerup_rocket', 'assets/rocket.png');
+         this.load.image('powerup_shield', 'assets/shield.png');
+        this.game.load.audio('m1', 'assets/audio/m1.mp3');
+        this.game.load.image('bimg', 'assets/bimg2.jpg');
+       
+    },
+
+    create: function() { 
+     	m1=this.game.add.audio('m1');
+   	//m1.play();
+   
+    this.game.add.image(this.game.world.centerX, this.game.world.centerY, 'bimg').anchor.set(0.5);
+
+    	var style = { font: "16px Helvetica", fill: "#FFFFFF", align: "right" };
+    	this.score_text = this.game.add.text(525, 6, "Score: 0 ", style);
+    	this.multiplier_text = this.game.add.text(525, 26, "Multiplier: 0 ", style);
+    	this.shields_text = this.game.add.text(10, 26, "Shields: 100\% ", style);
+    	this.engines_text = this.game.add.text(10, 46, "Engines: 200EU ", style);
+    	this.level_text = this.game.add.text(10, 6, "Level: 1 ", style);
+    	
+        // This function is called after the preload function     
+        // Here we set up the game, display sprites, etc. 
+        // Set the background color to blue
+			this.game.stage.backgroundColor = '#000000';
+
+		// Start the Arcade physics system (for movements and collisions)
+		this.game.physics.startSystem(Phaser.Physics.Arcade);
+
+		// Add the physics engine to all the game objects
+		this.game.world.enableBody = true; 
+		
+	  this.left = this.game.input.keyboard.addKey(Phaser.Keyboard.LEFT);
+     this.right = this.game.input.keyboard.addKey(Phaser.Keyboard.RIGHT);
+     this.up = this.game.input.keyboard.addKey(Phaser.Keyboard.UP);
+     this.down = this.game.input.keyboard.addKey(Phaser.Keyboard.DOWN);
+
+    // Add the paddle at the bottom of the screen
+
+    this.paddle = this.game.add.sprite(200, 400, 'paddle');
+
+	 //use for debugging    
+    //this.game.add.sprite(0, 200, 'straight_line');
+
+    this.spawnBricks();
+    this.spawnBullet();
+
+    // Make sure the paddle won't move when it hits the ball
+    this.paddle.body.immovable = true;
+    
+    spaceKey = this.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
+    spaceKey.onDown.add(this.togglePause, this);
+
+    
+    },
+	togglePause: function() {
+		this.game.physics.arcade.isPaused = (this.game.physics.arcade.isPaused) ? false : true;
+		if(this.game.physics.arcade.isPaused) {
+				   var style = { font: "16px Helvetica", fill: "#FFFFFF", align: "right" };
+			    	this.pause_text = this.game.add.text(280, 200, "PAUSED", style);
+		} else {
+					this.pause_text.text = "";
+					this.pause_text = null;
+		}
+	},
+    update: function() {
+			this.game_timer += this.time.elapsed;
+        // This function is called 60 times per second    
+        // It contains the game's logic
+        
+        		this.speed_up -=this.speed_down;
+        		this.speed_down = 0;
+        		
+        		this.powerup_speed = false;
+        			this.engines_text.text = "Engines: "+(200+this.speed_up)+"EU ";		
+			this.shields_text.text = "Shields: "+this.shields+"%";			
+        if(this.gameover == false) {
+         if (this.left.isDown) {
+         	this.paddle.body.velocity.x = -200-this.speed_up;
+       	} else if(this.right.isDown) { 
+         	this.paddle.body.velocity.x = 200+this.speed_up;   
+			} else if (this.up.isDown) {
+				this.paddle.body.velocity.y = -200-this.speed_up;
+			} else if (this.down.isDown) { 
+				this.paddle.body.velocity.y = 200+this.speed_up;
+			} else {
+				this.paddle.body.velocity.y = 0;
+				this.paddle.body.velocity.x = 0;
+			}
+			
+			this.speed_down=0;
+
+			
+    		// Call the 'hit' function when the ball hits a brick
+   			this.game.physics.arcade.collide(this.bullets, this.paddle, this.hit, this.processCallBack, this);
+   			//console.dir(this.bricks.length);
+       		this.game.physics.arcade.collide(this.obj_flip,this.bricks,this.hit2,this.processCallBack,this);    		    	
+				if(this.setPowerUp == "speed") {	
+
+					this.game.physics.arcade.collide(this.paddle,this.powerup,this.applyPowerUp_Speed,this.processCallBack,this);  
+				} else if(this.setPowerUp == "shields") {
+
+					this.game.physics.arcade.collide(this.paddle,this.powerup,this.applyPowerUp_Shield,this.processCallBack,this);  
+				}
+				if (this.powerup != null && this.powerup.position.y >= this.game.height-10) {
+					this.powerup.destroy();
+					this.powerup = null;
+				}		    	
+    		// Restart the game if the ball is below the paddle
+    		//console.dir(this.bullets.length);
+    		} //end gameover == false   	 	   	 
+    	  for(x=0;x<this.bullets.length;x++) {
+   	 	if(this.bullets[x] != null) { //put in checks because this is called over and over again	
+   	 		if (this.bullets[x].y >= this.game.height-10) {
+   	 			this.bullets[x].destroy();
+   	 			this.bullets[x]=null;
+       		
+       			this.bullet_count--;
+       			if(this.bullet_count <=0) {
+       				this.bullet_count = 0;
+       			}
+				//perform some sort of test and then recreate some bullets
+       		}
+       	}
+      }
+      if( (this.bullet_count == 0) ) {
+      		this.bullets=[];
+      		this.obj_flip=[];
+      		this.spawnBullet();	
+      		this.game_timer=0;
+      		
+		}
+    },
+     spawnBullet: function() {
+     		var RANDOM_BULLETS = Math.floor(randomWithRange(1,5));
+     		for(var x=0;x<RANDOM_BULLETS;x++) {
+     			var xpos = 0;
+     			var roll = Math.floor(randomWithRange(1,20));
+     			if(roll == 10 || roll == 15) { //the death bullet
+     				this.bullets[x] = this.game.add.sprite(x*Math.floor(Math.random()*200),0,'bullet_r');  
+     				this.bullets[x].body.velocity.x = randomWithRange(200,300);
+    				this.bullets[x].body.velocity.y = randomWithRange(200,300);
+    				this.bullets[x].body.collideWorldBounds = false;
+    				
+     			} else if(roll == 5) { //the speed bullet
+    				this.bullets[x] = this.game.add.sprite(x*Math.floor(Math.random()*200),0,'bullet_g');  
+    				this.bullets[x].body.velocity.x = 400;
+    				this.bullets[x].body.velocity.y = 400;
+    				this.bullets[x].body.collideWorldBounds = true;
+				} else {
+						var roll2 = Math.floor(randomWithRange(1,3));
+						if(roll2 == 2) {
+							xpos = x*Math.floor(Math.random()*200);
+						}
+					   this.bullets[x] = this.game.add.sprite(xpos,0,'bullet_y');  
+					   this.bullets[x].body.velocity.x = randomWithRange(200,300);
+    					this.bullets[x].body.velocity.y = randomWithRange(200,300);
+    					this.bullets[x].body.collideWorldBounds = true;
+				}
+    			// Give the ball some initial speed
+    			
+
+    			// Make sure the ball will bounce when hitting something
+    			this.bullets[x].body.bounce.setTo(1); 
+    			this.bullets[x].body.collideWorldBounds = true;
+    			this.bullets[x].paddle_hits=0;
+    			this.bullets[x].bricks_bashed=0;
+    			this.bullets[x].outOfBoundsKill = true;
+    		}
+     		this.bullet_count=RANDOM_BULLETS;
+     		this.BULLET_MAX=RANDOM_BULLETS;
+     },
+     spawnBricks: function(brick_config) {
+     		this.bricks=[];
+     		var random_bricks_rows = Math.floor(randomWithRange(1,5)); //decide how many rows of random bricks to show
+     		var array_counter=0;		
+     		for(var y=0;y<random_bricks_rows;y++) {
+	     		var random_bricks = Math.floor(randomWithRange(4,9));
+	     		this.brick_count += random_bricks;
+	     		var farthestLeft_COORD = this.game.width/2;
+     			var farthestRight_COORD = this.game.width/2;
+     			for(var x = 0;x<random_bricks;x++) {
+     				//expand the bricks out from the center	
+     				if(x==0) {
+     					 this.bricks[array_counter] = this.game.add.sprite(farthestLeft_COORD,y*BRICK_DIM3,'brick'); 
+     				} else if(x%2 == 0) { //add to the right
+     					    this.bricks[array_counter] = this.game.add.sprite(farthestLeft_COORD-BRICK_DIM2,y*BRICK_DIM3,'brick'); 
+     					    farthestLeft_COORD -= BRICK_DIM2;
+     				} else { //add to the left
+     						 this.bricks[array_counter] = this.game.add.sprite(farthestRight_COORD+BRICK_DIM2,y*BRICK_DIM3,'brick');
+     						 farthestRight_COORD += BRICK_DIM2; 
+     				}
+
+    				this.bricks[array_counter].body.immovable = true; 
+    				this.bricks[array_counter].body.bounce.setTo(1);
+    				array_counter++;
+    			} 
+     		}
+     		
+     		/*
+     		//need some code to create set configurations of bricks
+     		var x=0;
+     		
+     		// brick_coords=[x,y,brick_color,hit_counter]
+     		if(brick_config==null || brick_config == 0) {
+     			var brick_coords=brick_coords_array[0];
+     		} else {
+     			var brick_coords = brick_coords_array[1];
+     		}
+     		this.brick_count = brick_coords.length;
+     		
+     		for(var y=0;y<brick_coords.length;y++) {
+     			this.bricks[y] =  this.game.add.sprite((brick_coords[y][0]*BRICK_DIM1)+BRICK_DIM2,brick_coords[y][1]*BRICK_DIM3,'brick');
+     			this.bricks[y].body.immovable = true; 
+    			this.bricks[y].body.bounce.setTo(1);
+    			this.bricks[y].hit_counter=brick_coords[y][3]; 
+     		}
+     		*/
+     		
+     },
+     hit: function(obj1,obj2) { //obj1 bullet, obj2 paddle
+     		//console.dir(obj1);
+     		if(obj1.key == "bullet_r") {
+     			var damage = Math.floor(randomWithRange(5,20));
+     			var roll3 = Math.floor(randomWithRange(1,3));
+     			if(roll3 == 1) { //bullet strikes and speed suffers
+     				this.speed_down = Math.floor(randomWithRange(5,20));
+     			}
+     			this.shields-=damage;
+
+     			//play destroy animation
+     			if(this.shields<=0) {
+					obj2.destroy();
+     				this.gameover=true;
+     				 var style = { font: "16px Helvetica", fill: "#FFFFFF", align: "right" };
+			    	this.gameover_text = this.game.add.text(280, 200, "GAME OVER", style);
+     			} else {
+     			
+     			}
+     		} else {
+    			this.obj_flip.push(obj1);  // (obj1 is the bullet, obj2 is the paddle) do this because collision detection can only be reconfigured in the update function     		
+				//console.dir(this.obj_flip);			
+				obj1.paddle_hits++;  
+				
+				if(obj1.key=='bullet_y') {
+					var multiplier=(3*obj1.paddle_hits)+(9*obj1.bricks_bashed);
+				} else if(obj1.key=='bullet_g') {
+					var multiplier=6*((3*obj1.paddle_hits)+(9*obj1.bricks_bashed));
+				} 
+				this.multiplier_text.text="Multiplier: "+multiplier;    
+			}		
+    				    	
+     },
+     hit2: function(obj1,obj2) { //obj2 is the brick, obj1 is the bullet     	
+		var hc = obj2.hit_counter;
+ 	
+ 		//after brick is hit run a powerup check here
+     	this.spawnPowerUp(obj2.position.x,obj2.position.y,1);     			
+		
+		obj2.destroy();
+     	obj2=null;
+     	if(hc!=0) {
+     		
+     	}
+     	this.brick_count--;
+     	
+     	if(this.game_score==0){ 
+     		this.game_score++;
+     	}
+     	obj1.paddle_hits++;
+     	obj1.bricks_bashed++;
+		
+		if(obj1.key == 'bullet_y') {
+			var multiplier= (3*obj1.paddle_hits)+(9*obj1.bricks_bashed);
+		} else if(obj1.key == 'bullet_g') {
+				var multiplier= 6*((3*obj1.paddle_hits)+(9*obj1.bricks_bashed));
+		}   
+     	this.game_score=this.game_score+(3*obj1.paddle_hits)+(9*obj1.bricks_bashed);
+     	
+     	if(multiplier > 50) {
+     		//do some crazy shit here
+     	} else if(multiplier > 60) {
+     		//more crazy shit
+     	} else if(multiplier > 70) {
+     		//even more crazy shit
+     	}
+     	
+     	this.score_text.text = "Score: "+this.game_score;
+     	this.multiplier_text.text = "Multiplier: "+multiplier;
+		
+		if(this.game_score >= this.LEVEL_COMPLETE_SCORE) { //do a whole lot of shit here
+			this.levelup(this.level);
+		}     	
+     	
+		//alert(this.brick_count);     	
+     	if(this.brick_count == 0) {
+     		//play shuffle bricks animation
+     		if(this.game.level == 1 || true) {
+     			this.spawnBricks(1);
+     		} 
+     		//Either end the level or shuffle the bricks
+     	}
+     },
+		
+		levelup: function(lvl) {
+		    this.level_text.text = "Level: "+lvl++;
+			//parse new level data
+			//change background animation and game variables
+		},     
+		
+		spawnPowerUp: function(posX,posY,xvar) { //xvar is random variable which gives extra info i.e. level,brick color, score,e.tc.
+				var roll = Math.floor(randomWithRange(1,6));
+				if(this.powerup == null) {				
+					if(roll == 1) {
+			   		this.powerup = this.game.add.sprite(posX, posY, 'powerup_rocket');
+    					this.powerup.body.velocity.y = 80;
+    					this.setPowerUp = "speed";
+    				} else if (roll == 2) {
+    					 this.powerup = this.game.add.sprite(posX, posY, 'powerup_shield');
+    					 this.powerup.body.velocity.y = 80;
+    					 this.setPowerUp = "shields";
+    				}
+
+    			}
+		},
+		applyPowerUp_Speed: function() {
+			if(this.powerup != null) {
+				this.powerup.destroy();
+				this.powerup=null;
+			}
+			if(this.speed_up <= 500) {
+        		this.speed_up += Math.floor(randomWithRange(10,40));
+        	}
+		},   
+		applyPowerUp_Shield: function() {
+			if(this.powerup != null) {
+				this.powerup.destroy();
+				this.powerup=null;
+			}
+			if(this.shields <= 100) {
+        		this.shields += Math.floor(randomWithRange(10,40));
+        	}
+		},   
+     processCallBack: function() {
+     		return true;
+     },
+     parseLevelData: function(lvl) {
+     		var xmlhttp = new XMLHttpRequest();
+			xmlhttp.onreadystatechange = function()	{
+  			if(xmlhttp.status==200 && xmlhttp.readyState==4){    
+    			var words = xmlhttp.responseText.split('\n');
+    			for(var v=0;v<words.length;v++) {
+    				//console.dir(words[v]);
+    			}
+  			}
+		}
+		xmlhttp.open("GET","levels/Lvl"+lvl+".dat",true);
+		xmlhttp.send();
+     }
+     
+   }; 
+     

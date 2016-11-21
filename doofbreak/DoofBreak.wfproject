@@ -1,0 +1,39 @@
+name: DoofBreak
+files: /var/www/html/test_site/doof_break/index.html
+files: /var/www/html/test_site/doof_break/Data.js
+files: /var/www/html/test_site/doof_break/data/Credits.dat
+files: /var/www/html/test_site/doof_break/LevelSelect.js
+files: /var/www/html/test_site/doof_break/MainMenu.js
+files: /var/www/html/test_site/doof_break/Game.js
+files: /var/www/html/test_site/doof_break/Credits.js
+files: /var/www/html/test_site/doof_break/Brick_Coords.js
+basedir: /var/www/html/test_site/doof_break/
+basefile: 
+template: 
+view_bars: 0
+word_wrap: 0
+searchlist: Score
+searchlist: hit2
+searchlist: add
+searchlist: obj_flip
+searchlist: this.bricks
+searchlist: applyPowerUp
+searchlist: spawn
+searchlist: height
+searchlist: brick2
+searchlist: game over
+recent_files: /var/www/html/test_site/doof_break/levels/Lvl2.dat
+recent_files: /var/www/html/test_site/doof_break/data/Backgrounds.dat
+recent_files: /var/www/html/test_site/doof_break/data/Tracks.dat
+recent_files: /var/www/html/test_site/doof_break/index.html
+recent_files: /var/www/html/test_site/doof_break/Data.js
+recent_files: /var/www/html/test_site/doof_break/data/Credits.dat
+recent_files: /var/www/html/test_site/doof_break/LevelSelect.js
+recent_files: /var/www/html/test_site/doof_break/MainMenu.js
+recent_files: /var/www/html/test_site/doof_break/Game.js
+recent_files: /var/www/html/test_site/doof_break/Credits.js
+recent_files: /var/www/html/test_site/doof_break/Brick_Coords.js
+recent_files: /var/www/html/test_site/doof_break/levels/Lvl1.dat
+recent_files: /home/norki/.ssh/known_hosts
+opendir: /var/www/html/test_site/doof_break
+savedir: /var/www/html/test_site/doof_break
